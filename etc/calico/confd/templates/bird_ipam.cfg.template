@@ -5,10 +5,21 @@ filter calico_export_to_bgp_peers {
 {{- if ls $static_key}}
 
   # Export static routes.
+  {{- $node_cid_key := printf "/bgp/v1/host/%s/rr_cluster_id" (getenv "NODENAME")}}
+  {{- $node_cluster_id := getv $node_cid_key}}
+  {{- /*
+        Nodes acting as route reflectors should export static routes *and*
+        any longer prefixes learnt via BGP.
+        Mesh nodes should only export exact static routes.
+  */ -}}
   {{- range ls $static_key}}
     {{- $parts := split . "-"}}
     {{- $cidr := join $parts "/"}}
+    {{- if ne "" ($node_cluster_id)}}
   if ( net ~ {{$cidr}} ) then { accept; }
+    {{- else}}
+  if ( net = {{$cidr}} ) then { accept; }
+    {{- end}}
   {{- end}}
 {{- end}}
 {{range ls "/v1/ipam/v4/pool"}}{{$data := json (getv (printf "/v1/ipam/v4/pool/%s" .))}}
